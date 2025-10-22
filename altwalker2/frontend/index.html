@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AltWalker2 Live Viewer</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- AntV G6 -->
+    <script src="https://gw.alipayobjects.com/os/lib/antv/g6/4.8.24/dist/g6.min.js"></script>
+    
+    <!-- D3 for color scale -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        
+        #graph-container {
+            background: #f8fafc;
+        }
+        
+        .resizer {
+            cursor: col-resize;
+            background: #e2e8f0;
+            width: 8px;
+            transition: background 0.2s;
+        }
+        
+        .resizer:hover {
+            background: #cbd5e1;
+        }
+        
+        .resizer:active {
+            background: #94a3b8;
+        }
+        
+        .scrollable {
+            overflow-y: auto;
+            max-height: calc(100vh - 64px);
+        }
+        
+        textarea, input[readonly] {
+            background-color: #f1f5f9 !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation Bar -->
+    <nav class="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <span class="text-white font-bold text-lg">A2</span>
+                </div>
+                <h1 class="text-xl font-semibold text-gray-800">AltWalker2 Live Viewer</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button id="settings-btn" class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="flex h-[calc(100vh-64px)]">
+        <!-- Left Panel - Graph Visualization -->
+        <div id="left-panel" class="flex-1 relative">
+            <div id="graph-container" class="w-full h-full"></div>
+        </div>
+
+        <!-- Resizer -->
+        <div id="resizer" class="resizer"></div>
+
+        <!-- Right Panel - Information -->
+        <div id="right-panel" class="w-96 bg-white border-l border-gray-200 scrollable">
+            <div class="p-6 space-y-6">
+                
+                <!-- Current Step Section -->
+                <div id="current-step-section" class="hidden">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Current Step</h2>
+                    
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                            <input id="step-name" type="text" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ID</label>
+                            <input id="step-id" type="text" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Model</label>
+                            <input id="step-model" type="text" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Data</label>
+                            <textarea id="step-data" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono" rows="4"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Statistics Section -->
+                <div id="statistics-section" class="hidden">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Statistics</h2>
+                    
+                    <div class="space-y-4">
+                        <!-- Status -->
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-medium text-gray-700">Status</span>
+                            <span id="stats-status" class="px-3 py-1 rounded-full text-sm font-medium"></span>
+                        </div>
+                        
+                        <!-- Models -->
+                        <div class="border-t pt-4">
+                            <h3 class="text-sm font-semibold text-gray-700 mb-2">Models</h3>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Total:</span>
+                                    <span id="stats-models-total" class="font-mono">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Completed:</span>
+                                    <span id="stats-models-completed" class="font-mono">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Failed:</span>
+                                    <span id="stats-models-failed" class="font-mono">0</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Edges -->
+                        <div class="border-t pt-4">
+                            <h3 class="text-sm font-semibold text-gray-700 mb-2">Edges</h3>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Coverage:</span>
+                                    <span id="stats-edge-coverage" class="px-2 py-1 rounded text-xs font-medium">0%</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Visited:</span>
+                                    <span id="stats-edges-visited" class="font-mono">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Unvisited:</span>
+                                    <span id="stats-edges-unvisited" class="font-mono">0</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Vertices -->
+                        <div class="border-t pt-4">
+                            <h3 class="text-sm font-semibold text-gray-700 mb-2">Vertices</h3>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Coverage:</span>
+                                    <span id="stats-vertex-coverage" class="px-2 py-1 rounded text-xs font-medium">0%</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Visited:</span>
+                                    <span id="stats-vertices-visited" class="font-mono">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Unvisited:</span>
+                                    <span id="stats-vertices-unvisited" class="font-mono">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Output Section -->
+                <div class="border-t pt-6">
+                    <div class="flex justify-between items-center mb-3">
+                        <h2 class="text-lg font-semibold text-gray-800">Output</h2>
+                        <label class="flex items-center space-x-2 text-sm">
+                            <input id="auto-scroll" type="checkbox" checked class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <span class="text-gray-600">Auto-scroll</span>
+                        </label>
+                    </div>
+                    <textarea id="output-text" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono" rows="8"></textarea>
+                </div>
+
+                <!-- Error Section -->
+                <div class="border-t pt-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3">Error</h2>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                            <textarea id="error-message" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" rows="2"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Trace</label>
+                            <textarea id="error-trace" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono" rows="5"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Setup Overlay -->
+    <div id="setup-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800">WebSocket Setup</h2>
+            </div>
+            
+            <div class="p-6">
+                <div id="error-alert" class="hidden mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <p class="text-sm text-red-800" id="error-alert-text"></p>
+                </div>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Port</label>
+                        <input id="port-input" type="number" min="0" max="65535" value="5555" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    
+                    <button id="connect-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition font-medium">
+                        <span id="connect-btn-text">Connect</span>
+                        <span id="connect-btn-loading" class="hidden">
+                            <svg class="inline-block w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Connecting...
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Overlay -->
+    <div id="settings-overlay" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800">Graph Settings</h2>
+            </div>
+            
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Layout Direction</label>
+                    <select id="layout-direction" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <option value="TB">Top to Bottom</option>
+                        <option value="BT">Bottom to Top</option>
+                        <option value="LR">Left to Right</option>
+                        <option value="RL">Right to Left</option>
+                    </select>
+                </div>
+                
+                <div class="flex space-x-4">
+                    <button id="save-settings-btn" class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition font-medium">
+                        Save
+                    </button>
+                    <button id="close-settings-btn" class="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300 transition font-medium">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load JavaScript modules -->
+    <script src="/static/js/graph.js"></script>
+    <script src="/static/js/websocket.js"></script>
+    <script src="/static/js/ui.js"></script>
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

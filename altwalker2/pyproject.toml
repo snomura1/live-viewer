@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "altwalker2"
+version = "0.1.0"
+description = "A FastAPI-based live viewer for AltWalker test execution"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+authors = [
+    {name = "AltWalker2 Team"}
+]
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "websockets>=12.0",
+    "click>=8.1.0",
+    "altwalker>=0.4.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["altwalker2*"]
+
+[project.scripts]
+altwalker2 = "altwalker2.backend.cli:cli"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+]
