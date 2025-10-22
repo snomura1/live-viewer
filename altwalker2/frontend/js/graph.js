@@ -154,9 +154,11 @@ class GraphVisualizer {
                 if (actualModel.vertices) {
                     console.log(`DEBUG [GRAPH]: Found ${actualModel.vertices.length} vertices`);
                     actualModel.vertices.forEach(vertex => {
+                        // Use name as ID since GraphWalker doesn't provide currentElementID
                         nodes.push({
-                            id: vertex.id,
+                            id: vertex.name || vertex.id,
                             label: vertex.name || vertex.id,
+                            originalId: vertex.id,
                             modelName: modelName,
                             type: 'rect',
                             style: {
@@ -173,11 +175,17 @@ class GraphVisualizer {
                 if (actualModel.edges) {
                     console.log(`DEBUG [GRAPH]: Found ${actualModel.edges.length} edges`);
                     actualModel.edges.forEach(edge => {
+                        // Use name as ID since GraphWalker doesn't provide currentElementID
+                        // For source/target, we need to map vertex IDs to vertex names
+                        const sourceVertex = actualModel.vertices?.find(v => v.id === edge.sourceVertexId);
+                        const targetVertex = actualModel.vertices?.find(v => v.id === edge.targetVertexId);
+
                         edges.push({
-                            id: edge.id,
-                            source: edge.sourceVertexId,
-                            target: edge.targetVertexId,
+                            id: edge.name || edge.id,
+                            source: sourceVertex?.name || edge.sourceVertexId,
+                            target: targetVertex?.name || edge.targetVertexId,
                             label: edge.name || '',
+                            originalId: edge.id,
                             modelName: modelName
                         });
                     });
@@ -193,30 +201,60 @@ class GraphVisualizer {
     }
 
     updateStep(stepId) {
-        if (!this.graph || !stepId) return;
+        // CRITICAL: Log BEFORE any checks to capture all calls
+        console.log('ENTRY [GRAPH-UPDATE]: updateStep called', {
+            stepId: stepId,
+            stepIdType: typeof stepId,
+            hasGraph: !!this.graph,
+            graphType: typeof this.graph,
+            graphConstructor: this.graph ? this.graph.constructor.name : 'N/A'
+        });
+
+        if (!this.graph) {
+            console.error('EXIT [GRAPH-UPDATE]: No graph instance!');
+            return;
+        }
+
+        if (!stepId) {
+            console.error('EXIT [GRAPH-UPDATE]: No stepId provided!');
+            return;
+        }
+
+        console.log('DEBUG [GRAPH-UPDATE]: Passed guard clauses, proceeding...');
+
+        // Try to find the item by ID
+        const item = this.graph.findById(stepId);
+        console.log('DEBUG [GRAPH-UPDATE]: Found item by ID:', !!item);
+
+        if (!item) {
+            console.warn('DEBUG [GRAPH-UPDATE]: Could not find element with id:', stepId);
+            console.warn('DEBUG [GRAPH-UPDATE]: Available nodes:', this.graph.getNodes().map(n => n.getID()));
+            console.warn('DEBUG [GRAPH-UPDATE]: Available edges:', this.graph.getEdges().map(e => e.getID()));
+            return;
+        }
 
         // Remove highlight from previous step
         if (this.currentStepId) {
+            console.log('DEBUG [GRAPH-UPDATE]: Removing highlight from previous step:', this.currentStepId);
             this.highlightElement(this.currentStepId, false);
         }
 
         // Increment visit count
         this.visitCounts[stepId] = (this.visitCounts[stepId] || 0) + 1;
+        console.log('DEBUG [GRAPH-UPDATE]: Visit count for', stepId, ':', this.visitCounts[stepId]);
 
         // Update current step
         this.currentStepId = stepId;
 
         // Apply visit count color
+        console.log('DEBUG [GRAPH-UPDATE]: Updating element color');
         this.updateElementColor(stepId);
 
         // Highlight current step
+        console.log('DEBUG [GRAPH-UPDATE]: Highlighting current step');
         this.highlightElement(stepId, true);
 
-        // Center view on current step
-        this.graph.focusItem(stepId, true, {
-            easing: 'easeCubic',
-            duration: 300
-        });
+        // Note: Removed focusItem() to prevent graph shaking/movement
     }
 
     updateElementColor(elementId) {

@@ -235,6 +235,9 @@ def online(
             if result.get("error"):
                 has_failures = True
 
+            # Add delay between steps for visualization (1 second)
+            time.sleep(0.5)
+
         # Get final statistics
         statistics = graphwalker.get_statistics()
 

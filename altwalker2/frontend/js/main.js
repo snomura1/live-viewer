@@ -130,16 +130,39 @@ function handleStartMessage(message) {
 
 // Handle step start message
 function handleStepStartMessage(message) {
-    console.log('Step started', message.step);
+    console.log('DEBUG [STEP-START]: Step started', message.step);
+    console.log('DEBUG [STEP-START]: Full message:', JSON.stringify(message));
 
     const step = message.step;
+    console.log('DEBUG [STEP-START]: step.id =', step.id);
+    console.log('DEBUG [STEP-START]: step.name =', step.name);
+    console.log('DEBUG [STEP-START]: step.modelName =', step.modelName);
 
     // Update UI with step information
     uiManager.updateStepInfo(step);
 
     // Update graph visualization
     if (step.id) {
+        console.log('DEBUG [STEP-START]: Calling graphVisualizer.updateStep with id:', step.id);
         graphVisualizer.updateStep(step.id);
+    } else {
+        console.warn('DEBUG [STEP-START]: step.id is null/undefined, cannot update graph');
+        console.warn('DEBUG [STEP-START]: Trying with step.name instead:', step.name);
+        // Try using name as fallback
+        if (step.name) {
+            console.log('DEBUG [STEP-START]: About to call graphVisualizer.updateStep with name:', step.name);
+            console.log('DEBUG [STEP-START]: graphVisualizer object:', graphVisualizer);
+            console.log('DEBUG [STEP-START]: graphVisualizer.updateStep:', graphVisualizer.updateStep);
+            try {
+                graphVisualizer.updateStep(step.name);
+                console.log('DEBUG [STEP-START]: graphVisualizer.updateStep called successfully');
+            } catch (error) {
+                console.error('DEBUG [STEP-START]: Error calling updateStep:', error);
+                console.error('DEBUG [STEP-START]: Error stack:', error.stack);
+            }
+        } else {
+            console.error('DEBUG [STEP-START]: step.name is also null/undefined!');
+        }
     }
 }
 
