@@ -2,13 +2,17 @@
 
 import json
 import logging
+import threading
 from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+from typing import List, Tuple
 import uvicorn
 
 from .websocket_manager import manager
+from . import walker
 from . import __version__
 
 logger = logging.getLogger(__name__)
@@ -58,6 +62,74 @@ async def version_check():
             "reporter_connected": manager.is_reporter_connected(),
             "viewer_connected": manager.is_viewer_connected(),
         },
+        status_code=200,
+    )
+
+
+# Pydantic model for start test request
+class StartTestRequest(BaseModel):
+    test_package: str = "../example/tests"
+    models: List[Tuple[str, str]] = [
+        ("../example/models/default.json", "random(edge_coverage(100))")
+    ]
+    gw_port: int = 8888
+    host: str = "localhost"
+    port: int = 5555
+
+
+@app.post("/api/start-test")
+async def start_test(request: StartTestRequest):
+    """Start test execution in a background thread."""
+    print("=" * 80)
+    print("DEBUG [API]: /api/start-test endpoint called!")
+    print(f"DEBUG [API]: Request received - test_package: {request.test_package}")
+    print(f"DEBUG [API]: Request received - models: {request.models}")
+    print(f"DEBUG [API]: Request received - gw_port: {request.gw_port}")
+    print(f"DEBUG [API]: Request received - host: {request.host}")
+    print(f"DEBUG [API]: Request received - port: {request.port}")
+    print("=" * 80)
+
+    def run_test():
+        try:
+            print(f"DEBUG [API-THREAD]: Thread started!")
+            print(f"DEBUG [API-THREAD]: Starting test execution...")
+            print(f"DEBUG [API-THREAD]: Test package: {request.test_package}")
+            print(f"DEBUG [API-THREAD]: Models: {request.models}")
+            print(f"DEBUG [API-THREAD]: GraphWalker port: {request.gw_port}")
+
+            walker.online(
+                test_package=request.test_package,
+                models=request.models,
+                host=request.host,
+                port=request.port,
+                executor_type="python",
+                executor_url=None,
+                start_element=None,
+                verbose=False,
+                unvisited=False,
+                blocked=False,
+                gw_host=None,
+                gw_port=request.gw_port,
+                report_path=False,
+                report_path_file=None,
+                report_file=None,
+                report_xml=False,
+                report_xml_file=None,
+                import_mode="importlib",
+            )
+            print("Test execution completed!")
+        except Exception as e:
+            print(f"Error during test execution: {e}")
+            import traceback
+
+            traceback.print_exc()
+
+    # Start test in background thread
+    test_thread = threading.Thread(target=run_test, daemon=True)
+    test_thread.start()
+
+    return JSONResponse(
+        content={"status": "started", "message": "Test execution started"},
         status_code=200,
     )
 

@@ -52,12 +52,6 @@ class WebSocketClient {
                         client: 'viewer'
                     });
 
-                    // Send start acknowledgment
-                    console.log('DEBUG [CLIENT]: Sending start message');
-                    this.send({
-                        type: 'start'
-                    });
-
                     resolve();
                 };
 

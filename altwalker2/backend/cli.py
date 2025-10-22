@@ -221,6 +221,7 @@ def walk(
     click.secho("Starting WebSocket server...", fg="green", bold=True)
 
     # Load steps from file
+    print("debgug==1", steps_path)
     with open(steps_path, "r") as f:
         steps = json.load(f)
 

@@ -4,6 +4,9 @@ Usage: python run_server.py [--host HOST] [--port PORT]
 """
 
 import sys
+import webbrowser
+import time
+import threading
 from pathlib import Path
 
 # Add parent directory to path
@@ -37,6 +40,19 @@ def main():
     print(f"Starting AltWalker2 Live Viewer server...")
     print(f"Server: http://{host}:{port}")
     print("Press Ctrl+C to stop")
+
+    # Open browser after a short delay
+    def open_browser():
+        time.sleep(1.5)  # Wait for server to start
+        browser_url = f"http://{host}:{port}"
+        print(f"\nOpening browser at: {browser_url}")
+        try:
+            webbrowser.open(browser_url)
+        except Exception as e:
+            print(f"Could not open browser automatically: {e}")
+
+    browser_thread = threading.Thread(target=open_browser, daemon=True)
+    browser_thread.start()
 
     uvicorn.run(app, host=host, port=port, log_level="info")
 

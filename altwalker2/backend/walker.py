@@ -1,19 +1,17 @@
-"""Test execution logic integrated with AltWalker"""
+"""Test execution logic with direct GraphWalker integration
+
+No AltWalker dependency - direct GraphWalker REST API usage.
+"""
 
 import json
 import logging
 import socket
 import time
-import requests
 from pathlib import Path
 from typing import List, Tuple, Dict, Any, Optional
 
-from altwalker.executor import create_executor
-from altwalker.graphwalker import GraphWalkerClient, GraphWalkerException
-from altwalker.model import get_models
-from altwalker.planner import create_planner
-from altwalker.walker import create_walker
-
+from .graphwalker_client import GraphWalkerClient, GraphWalkerException
+from .python_executor import PythonTestExecutor, TestExecutionException
 from .reporter import WebSocketReporter
 
 logger = logging.getLogger(__name__)
@@ -34,7 +32,6 @@ def find_available_port(start_port: int = 8888, max_attempts: int = 10) -> int:
     """
     for port in range(start_port, start_port + max_attempts):
         try:
-            # Try to bind to the port to check if it's available
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.bind(("127.0.0.1", port))
                 logger.info(f"Found available port: {port}")
@@ -46,25 +43,6 @@ def find_available_port(start_port: int = 8888, max_attempts: int = 10) -> int:
     raise RuntimeError(
         f"Could not find an available port in range {start_port}-{start_port + max_attempts - 1}"
     )
-
-
-def wait_for_graphwalker(port: int, timeout: int = 5, interval: float = 1.0) -> bool:
-    """Wait for GraphWalker REST service to become available.
-
-    Args:
-        port: Port number where GraphWalker is running
-        timeout: Maximum time to wait in seconds
-        interval: Time between check attempts in seconds
-
-    Returns:
-        True if service is available, False otherwise
-    """
-    # Simple sleep-based wait to avoid port exhaustion
-    # GraphWalker typically starts quickly
-    print(f"Waiting for GraphWalker REST service on port {port}...")
-    time.sleep(2)  # Give GraphWalker time to start
-    print(f"GraphWalker should be ready on port {port}")
-    return True
 
 
 def load_models_json(model_paths: List[str]) -> List[Dict[str, Any]]:
@@ -113,25 +91,27 @@ def online(
 ):
     """Execute tests online with GraphWalker and report via WebSocket.
 
+    Direct GraphWalker integration without AltWalker dependency.
+
     Args:
         test_package: Path to test package
         models: List of (model_path, generator) tuples
         host: WebSocket server host
         port: WebSocket server port
-        executor_type: Test executor type (python, dotnet, etc.)
-        executor_url: Optional executor URL
+        executor_type: Test executor type (only 'python' supported)
+        executor_url: Optional executor URL (not used)
         start_element: Starting element in the model
         verbose: Verbose output
         unvisited: Report unvisited elements
         blocked: Filter blocked elements
-        gw_host: GraphWalker host
+        gw_host: GraphWalker host (not used, always localhost)
         gw_port: GraphWalker port
-        report_path: Enable path reporting
-        report_path_file: Path report file
-        report_file: General report file
-        report_xml: Enable XML reporting
-        report_xml_file: XML report file
-        import_mode: Python import mode
+        report_path: Enable path reporting (not used)
+        report_path_file: Path report file (not used)
+        report_file: General report file (not used)
+        report_xml: Enable XML reporting (not used)
+        report_xml_file: XML report file (not used)
+        import_mode: Python import mode (not used)
     """
     # Load model JSON data
     model_paths = [model[0] for model in models]
@@ -140,17 +120,16 @@ def online(
     # Create reporter
     reporter = WebSocketReporter(host=host, port=port, models_data=models_json)
 
-    # Create executor
-    executor = create_executor(
-        tests_path=test_package,
-        executor_type=executor_type,
-        executor_url=executor_url,
-        import_mode=import_mode,
-    )
+    # Create test executor
+    if executor_type != "python":
+        raise ValueError(
+            f"Unsupported executor type: {executor_type}. Only 'python' is supported."
+        )
+
+    executor = PythonTestExecutor(tests_path=test_package)
 
     # Try to start GraphWalker on sequential ports
-    # This avoids TOCTOU race condition by directly trying ports without pre-checking
-    planner = None
+    graphwalker = None
     attempted_port = None
     max_retries = 10
 
@@ -159,26 +138,16 @@ def online(
         try:
             print(f"Attempting to start GraphWalker on port: {attempted_port}")
 
-            # Create planner (GraphWalker client with auto-start)
-            # This will start the GraphWalker process
-            planner = create_planner(
+            # Create GraphWalker client
+            graphwalker = GraphWalkerClient(
                 models=models,
+                port=attempted_port,
                 blocked=blocked,
                 start_element=start_element,
-                port=attempted_port,
             )
-            print(f"GraphWalker process started on port: {attempted_port}")
 
-            # Wait for GraphWalker REST service to become available
-            if not wait_for_graphwalker(attempted_port, timeout=10):
-                # Service didn't start properly, kill it and try next port
-                if planner:
-                    planner.kill()
-                    planner = None
-                logger.warning(
-                    f"GraphWalker REST service did not become available on port {attempted_port}, trying next port..."
-                )
-                continue
+            # Start GraphWalker process
+            graphwalker.start()
 
             print(
                 f"GraphWalker is ready and accepting connections on port: {attempted_port}"
@@ -190,59 +159,103 @@ def online(
                 logger.warning(
                     f"Port {attempted_port} is in use, trying port {attempted_port + 1}..."
                 )
-                # Clean up if planner was partially created
-                if planner:
+                if graphwalker:
                     try:
-                        planner.kill()
+                        graphwalker.kill()
                     except:
                         pass
-                    planner = None
+                    graphwalker = None
                 continue
             else:
                 # Other GraphWalker errors should be raised
+                if graphwalker:
+                    try:
+                        graphwalker.kill()
+                    except:
+                        pass
                 raise
         except Exception as e:
-            # Unexpected error, log and try next port
             logger.warning(
                 f"Unexpected error starting GraphWalker on port {attempted_port}: {e}"
             )
-            if planner:
+            if graphwalker:
                 try:
-                    planner.kill()
+                    graphwalker.kill()
                 except:
                     pass
-                planner = None
+                graphwalker = None
             continue
 
-    if planner is None:
+    if graphwalker is None:
         raise RuntimeError(
             f"Failed to start GraphWalker after {max_retries} attempts. "
-            f"Tried ports {gw_port}-{gw_port + max_retries - 1}. "
-            "All ports are in use or GraphWalker failed to start. "
-            "Please ensure some ports in this range are available or check GraphWalker installation."
+            f"Tried ports {gw_port}-{gw_port + max_retries - 1}."
         )
 
-    # Start test execution using walker (like original altwalker-live-viewer)
+    # Execute tests
     try:
-        print("Starting test execution with walker...")
+        print("Starting test execution with GraphWalker...")
 
-        # Create walker to manage execution
-        # This uses AltWalker's internal connection pooling
-        walker = create_walker(planner, executor, reporter=reporter)
+        # Load test module
+        executor.load()
 
-        # Run tests
-        walker.run()
+        # Start reporting
+        reporter.start()
 
-        print(f"Test execution completed with status: {walker.status}")
+        # Main execution loop
+        step_count = 0
+        has_failures = False
+
+        while graphwalker.has_next():
+            # Get next step from GraphWalker
+            step = graphwalker.get_next()
+            step_count += 1
+
+            print(f"DEBUG [WALKER]: Received step from GraphWalker: {step}")
+
+            # Validate step data
+            if not isinstance(step, dict) or "name" not in step:
+                logger.error(f"Invalid step data from GraphWalker: {step}")
+                print(f"ERROR: Invalid step data - missing 'name' field")
+                break
+
+            # Get current model data
+            step["data"] = graphwalker.get_data()
+
+            # Report step start
+            reporter.step_start(step)
+
+            # Execute the step
+            result = executor.execute_step(step)
+
+            # Report step end
+            reporter.step_end(step, result)
+
+            # Check for errors
+            if result.get("error"):
+                has_failures = True
+
+        # Get final statistics
+        statistics = graphwalker.get_statistics()
+
+        # Report end
+        reporter.end(statistics=statistics, status=not has_failures)
+
+        print(f"Test execution completed. Steps executed: {step_count}")
+        print(f"Status: {'FAILED' if has_failures else 'PASSED'}")
 
     except Exception as e:
         logger.error(f"Error during test execution: {e}")
+        try:
+            reporter.end(statistics={}, status=False)
+        except:
+            pass
         raise
     finally:
         if executor:
             executor.kill()
-        if planner:
-            planner.kill()
+        if graphwalker:
+            graphwalker.kill()
 
 
 def walk(
@@ -267,32 +280,30 @@ def walk(
         steps: List of step dictionaries to execute
         host: WebSocket server host
         port: WebSocket server port
-        executor_type: Test executor type (python, dotnet, etc.)
-        executor_url: Optional executor URL
-        report_path: Enable path reporting
-        report_path_file: Path report file
-        report_file: General report file
-        report_xml: Enable XML reporting
-        report_xml_file: XML report file
-        import_mode: Python import mode
+        executor_type: Test executor type (only 'python' supported)
+        executor_url: Optional executor URL (not used)
+        report_path: Enable path reporting (not used)
+        report_path_file: Path report file (not used)
+        report_file: General report file (not used)
+        report_xml: Enable XML reporting (not used)
+        report_xml_file: XML report file (not used)
+        import_mode: Python import mode (not used)
     """
     # Create reporter
     reporter = WebSocketReporter(host=host, port=port, models_data=[])
 
     # Create executor
-    executor = create_executor(
-        tests_path=test_package,
-        executor_type=executor_type,
-        executor_url=executor_url,
-        import_mode=import_mode,
-    )
+    if executor_type != "python":
+        raise ValueError(f"Unsupported executor type: {executor_type}")
+
+    executor = PythonTestExecutor(tests_path=test_package)
 
     # Execute tests
     try:
         reporter.start()
 
         # Load executor
-        executor.load(test_package)
+        executor.load()
 
         # Execute each step
         has_failures = False

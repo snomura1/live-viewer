@@ -35,20 +35,54 @@ function setupWebSocketHandlers() {
 
 // Handle connection
 async function handleConnect() {
+    console.log('DEBUG [CONNECT]: handleConnect() called');
     const port = uiManager.getPort();
+    console.log('DEBUG [CONNECT]: Port:', port);
 
     uiManager.showConnecting();
     uiManager.hideError();
 
     try {
+        console.log('DEBUG [CONNECT]: Attempting WebSocket connection...');
         await wsClient.connect(port);
-        console.log('Connected to WebSocket server');
+        console.log('DEBUG [CONNECT]: WebSocket connected successfully');
 
-        // Connection successful - keep overlay visible until test starts
+        // Connection successful - now start the test execution
+        console.log('DEBUG [CONNECT]: About to call /api/start-test');
+        const requestBody = {
+            test_package: '../example/tests',
+            models: [['../example/models/default.json', 'random(edge_coverage(100))']],
+            gw_port: 8888,
+            host: 'localhost',
+            port: port
+        };
+        console.log('DEBUG [CONNECT]: Request body:', JSON.stringify(requestBody));
+
+        const response = await fetch('/api/start-test', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        console.log('DEBUG [CONNECT]: Got response from /api/start-test, status:', response.status);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('DEBUG [CONNECT]: API error response:', errorText);
+            throw new Error('Failed to start test execution: ' + errorText);
+        }
+
+        const result = await response.json();
+        console.log('DEBUG [CONNECT]: Test execution started successfully:', result);
+
+        // Keep overlay visible until test starts
         uiManager.hideConnecting();
 
     } catch (error) {
-        console.error('Connection error:', error);
+        console.error('DEBUG [CONNECT]: Error occurred:', error);
+        console.error('DEBUG [CONNECT]: Error stack:', error.stack);
         uiManager.hideConnecting();
         uiManager.showError(error.message || 'Failed to connect to server');
     }

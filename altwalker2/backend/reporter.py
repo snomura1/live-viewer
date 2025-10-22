@@ -155,6 +155,7 @@ class WebSocketReporter:
         self._send_message({"type": "step-start", "step": step})
 
     def step_end(self, step: Dict[str, Any], result: Dict[str, Any]):
+        print("asdfad----===", step)
         """Report the end of a step execution.
 
         Args:

@@ -33,9 +33,13 @@ class ConnectionManager:
     async def connect_viewer(self, websocket: WebSocket):
         """Connect a viewer client."""
         async with self.viewer_lock:
+            # If viewer already connected, disconnect the old one
             if self.viewer is not None:
-                await websocket.close(code=1008, reason="Viewer already connected")
-                raise ValueError("Viewer already connected")
+                logger.info("Disconnecting existing viewer")
+                try:
+                    await self.viewer.close()
+                except:
+                    pass
 
             await websocket.accept()
             self.viewer = websocket
