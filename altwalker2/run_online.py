@@ -49,11 +49,16 @@ def main():
     gw_port = 8888  # GraphWalker port
 
     i = 2
-    model_path = (
-        "../example/models/default.json"  # str(Path(sys.argv[i + 1]).resolve())
-    )
-    generator = "random(edge_coverage(100))"  # sys.argv[i + 2]
+    # str(Path(sys.argv[i + 1]).resolve())
+    model_path = "../example/models/default.json"
+
+    # generator = "random(edge_coverage(100))"  # sys.argv[i + 2]
+    # generator = "a_star(edge_coverage(100))"  # sys.argv[i + 2]
+    generator = "weighted_random(edge_coverage(100))"  # sys.argv[i + 2]
+    # generator = "quick_random(edge_coverage(100))"  # sys.argv[i + 2]
+
     models.append((model_path, generator))
+
     # while i < len(sys.argv):
     #     if True:  # sys.argv[i] == "-m" and i + 2 < len(sys.argv):
     #         model_path = (

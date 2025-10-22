@@ -51,6 +51,7 @@ async function handleConnect() {
         console.log('DEBUG [CONNECT]: About to call /api/start-test');
         const requestBody = {
             test_package: '../example/tests',
+            // models: [['../example/models/default.json', 'a_star(edge_coverage(100))']],
             models: [['../example/models/default.json', 'random(edge_coverage(100))']],
             gw_port: 8888,
             host: 'localhost',

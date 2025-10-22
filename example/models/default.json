@@ -1,114 +1,117 @@
 {
-    "name": "Default model",
+    "name": "E-commerce example",
     "models": [
         {
-            "name": "ModelName",
-            "generator": "random(edge_coverage(100) && vertex_coverage(100))",
+            "name": "NavigationModel",
+            "generator": "random(edge_coverage(100))",
+            "startElementId": "e0",
             "actions": [
-                "counter = 0;"
+                "global.itemsInCart = 0;"
             ],
-            "startElementId": "v0",
             "vertices": [
                 {
                     "id": "v0",
-                    "name": "vertex_A"
+                    "name": "v_homepage",
+                    "sharedState": "homepage"
                 },
                 {
                     "id": "v1",
-                    "name": "vertex_B"
+                    "name": "v_product_page"
                 },
                 {
                     "id": "v2",
-                    "name": "vertex_C"
+                    "name": "v_homepage_cart_open"
                 },
                 {
                     "id": "v3",
-                    "name": "vertex_D"
+                    "name": "v_product_page_cart_open"
                 },
                 {
                     "id": "v4",
-                    "name": "vertex_E"
-                },
-                {
-                    "id": "v5",
-                    "name": "vertex_F"
-                },
-                {
-                    "id": "v6",
-                    "name": "vertex_G"
+                    "name": "v_cart_open_and_not_empty",
+                    "sharedState": "cart-open"
                 }
             ],
             "edges": [
                 {
                     "id": "e0",
-                    "name": "edge_A",
+                    "name": "e_load_home_page",
+                    "targetVertexId": "v0"
+                },
+                {
+                    "id": "e1",
+                    "name": "e_add_to_cart_from_homepage",
+                    "sourceVertexId": "v0",
+                    "targetVertexId": "v2",
                     "actions": [
-                        "counter++;"
-                    ],
+                        "global.itemsInCart++;"
+                    ]
+                },
+                {
+                    "id": "e2",
+                    "name": "e_go_to_product_page",
                     "sourceVertexId": "v0",
                     "targetVertexId": "v1"
                 },
                 {
-                    "id": "e1",
-                    "name": "edge_B",
-                    "actions": [
-                        "counter++;"
-                    ],
-                    "sourceVertexId": "v1",
-                    "targetVertexId": "v2"
-                },
-                {
-                    "id": "e2",
-                    "name": "edge_C",
-                    "actions": [
-                        "counter++;"
-                    ],
-                    "sourceVertexId": "v2",
-                    "targetVertexId": "v3"
-                },
-                {
                     "id": "e3",
-                    "name": "edge_D",
-                    "actions": [
-                        "counter++;"
-                    ],
-                    "sourceVertexId": "v3",
-                    "targetVertexId": "v4"
+                    "name": "e_close_cart",
+                    "sourceVertexId": "v2",
+                    "targetVertexId": "v0"
                 },
                 {
                     "id": "e4",
-                    "name": "edge_E",
-                    "actions": [
-                        "counter++;"
-                    ],
-                    "sourceVertexId": "v4",
+                    "name": "e_go_to_homepage",
+                    "sourceVertexId": "v1",
                     "targetVertexId": "v0"
                 },
                 {
                     "id": "e5",
-                    "name": "edge_F",
+                    "name": "e_add_to_cart_from_product_page",
+                    "sourceVertexId": "v1",
+                    "targetVertexId": "v3",
                     "actions": [
-                        "counter++;"
-                    ],
-                    "sourceVertexId": "v0",
-                    "targetVertexId": "v5"
+                        "global.itemsInCart++;"
+                    ]
                 },
                 {
                     "id": "e6",
-                    "name": "edge_G",
-                    "actions": [
-                        "counter++;"
-                    ],
-                    "sourceVertexId": "v5",
-                    "targetVertexId": "v6"
+                    "name": "e_close_cart",
+                    "sourceVertexId": "v3",
+                    "targetVertexId": "v1"
                 },
                 {
                     "id": "e7",
-                    "name": "edge_H",
-                    "actions": [
-                        "counter++;"
-                    ],
-                    "sourceVertexId": "v6",
+                    "name": "e_open_cart",
+                    "sourceVertexId": "v1",
+                    "targetVertexId": "v4",
+                    "guard": "global.itemsInCart > 0"
+                },
+                {
+                    "id": "e8",
+                    "name": "e_open_cart",
+                    "sourceVertexId": "v0",
+                    "targetVertexId": "v4",
+                    "guard": "global.itemsInCart > 0"
+                },
+                {
+                    "id": "e9",
+                    "name": "e_do_nothing",
+                    "sourceVertexId": "v3",
+                    "targetVertexId": "v4",
+                    "guard": "global.itemsInCart > 0"
+                },
+                {
+                    "id": "e10",
+                    "name": "e_do_nothing",
+                    "sourceVertexId": "v2",
+                    "targetVertexId": "v4",
+                    "guard": "global.itemsInCart > 0"
+                },
+                {
+                    "id": "e11",
+                    "name": "e_close_cart_and_go_to_homepage",
+                    "sourceVertexId": "v4",
                     "targetVertexId": "v0"
                 }
             ]

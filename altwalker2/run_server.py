@@ -54,7 +54,12 @@ def main():
     browser_thread = threading.Thread(target=open_browser, daemon=True)
     browser_thread.start()
 
-    uvicorn.run(app, host=host, port=port, log_level="info")
+    uvicorn.run(
+        app,
+        host=host,
+        port=port,
+        log_level="info",
+    )
 
 
 if __name__ == "__main__":
